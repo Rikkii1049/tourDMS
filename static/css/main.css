@@ -1,0 +1,78 @@
+body{
+    background-color: rgb(222, 222, 222);
+    width: 100%;
+    margin: 0px;
+    padding: 0px
+}
+
+/* scrollbar settings */
+/* WebKit-based browsers: Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Table Adjusments */
+td + td, th + th {
+  padding-left: 40px;
+}
+
+.transparent-background{
+  background-color: transparent !important;
+  border: none;
+  border-bottom: 0.5px solid #000000; /* Bootstrap's default border color */
+  border-radius: none;
+}
+
+.transparent-background-noborder{
+  background-color: transparent !important;
+  border: none;
+}
+
+.red-hover:hover{
+  color: #0d6efd;
+}
+
+.scrollable-main-content{
+  overflow-y: scroll;
+}
+
+.main-content-overflow-adjust {
+  padding-left: 260px;
+}
+
+.aside {
+  position: sticky;
+  top: 0;
+  overflow-y: scroll; /* Allow scrolling in the sidebar if needed */
+}
+
+.tag-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background-color: #f8f9fa; /* Optional: light background */
+    max-width: 100%;           /* Allow horizontal expansion */
+}
+
+.tag-box .badge {
+    white-space: nowrap;
+}
+
+input.bare-input {
+  all: unset;
+}

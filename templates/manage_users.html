@@ -1,0 +1,79 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Manage User/Staff{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+  <div class="card-header">
+      <i class="bi bi-list-ol pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Daftar User/Staff</strong>
+  </div>
+  <div class="card-body">
+    <div style="overflow-x: scroll;">
+        <table class="table table-responsive table-hover table-sm mt-3">
+            <thead>
+              <tr>
+                <th scope="col" class="pe-4">#</th>
+                <th class="pe-4" scope="col">Nama</th>
+                <th class="pe-4" scope="col">Email</th>
+                <th class="pe-4" scope="col">Peran</th>
+                <th class="pe-4" scope="col">Status</th>
+                <th class="pe-4 text-center" scope="col">Aksi</th>
+                <th class="pe-4" scope="col">Jabatan</th>
+                <th class="pe-4" scope="col">Bidang</th>
+                <th class="text-nowrap" scope="col">Daftar pada</th>
+              </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <th scope="row" class="pe-4 rowNum">{{ loop.index }}</th>
+                    <td class="pe-4 text-nowrap" >{{ user.nama }}</td>
+                    <td class="pe-4 text-nowrap" >{{ user.email }}</td>
+                    <td class="pe-4 text-nowrap" >{{ user.web_role }}</td>
+                    <td class="pe-4 text-nowrap" >{{ user.status }}</td>
+                    <td class="pe-4 text-center d-inline-flex gap-2">
+                      <a href="{{ url_for('edituserpage', id=user.id_user) }}" class="btn btn-sm btn-outline-warning">Edit</a>
+                      <form method="POST" action="{{ url_for('deleteuser') }}" style="display: inline;" onsubmit="return confirm('Apakah anda yakin ingin menghapus user ini?');">
+                        <input type="hidden" name="user_id" value="{{ user.id_user }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
+                      </form>
+                    </td>
+                    <td class="pe-4 text-nowrap" >{{ user.jabatan }}</td>
+                    <td class="pe-4 text-nowrap" >
+                    {% if user.bidang.nama_bidang %}
+                        {{ user.bidang.nama_bidang }}
+                    {% else %}
+                        None
+                    {% endif %}  
+                    </td>
+                    <td class="text-nowrap" >{{ user.dibuat_pada }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+  </div>
+  <div class="card-footer">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination pagination-sm">
+        <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="#">1</a></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><a class="page-link" href="#">3</a></li>
+        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+{% endblock %}

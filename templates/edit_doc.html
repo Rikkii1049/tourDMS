@@ -1,0 +1,65 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Edit User{% endblock %}
+
+{% block content %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+    <div class="card-header">
+        <strong><i class="bi bi-pencil-square pe-2" style="color: red;"></i>Form Ubah Dokumen</strong>
+    </div>
+    <div class="card-body">
+        <form action="{{url_for('editdoc')}}" method="post" enctype="multipart/form-data" autocomplete="off">
+            <input type="hidden" name="doc_id" value="{{ doc.id_dokumen }}">
+            <div class="row mb-3">
+                <div class="col-3">
+                    Judul Dokumen
+                </div>
+                <div class="col-9">
+                    : {{ doc.judul_dokumen }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-3">
+                    Kategori Dokumen
+                </div>
+                <div class="col-9">
+                    : {{ doc.kategori.nama_kategori }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-3">
+                    Deskripsi Dokumen
+                </div>
+                <div class="col-9">
+                    : {{ doc.deskripsi }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-3">
+                    File Lama
+                </div>
+                <div class="col-9">
+                    : <a href="{{ doc.url_file }}">{{ doc.nama_file }}</a>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="uploadDocument" class="form-label">Upload File Baru</label>
+                <input name="file" class="form-control form-control-sm" id="uploadDocument" accept=".pdf,.doc,.docx,.xls,.xlsx" type="file" required>
+                <div id="dokumenKeteranganHint" class="form-text">Tipe file yang diterima : .docx, .doc, .pdf, .xls, .xlsx, .jpg, dan .img. Maksimum ukuran 10MB</div>
+            </div>
+            <div class="mb-3">
+                <label for="tags" class="form-label">Tags :</label>
+                <div class="d-inline-flex flex-wrap" id="tag-container">
+                    {% for tag in tags %}
+                        <span class="badge bg-primary me-2 mb-2 tag-btn" style="user-select: none;">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div id="selected-tags-inputs"></div>
+            <br><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-cloud-arrow-up me-2"></i>Upload Edited</button>
+            <a href="{{url_for('mydocs')}}" class="btn btn-sm btn-danger" onclick="return confirm('Batal upload dokumen?');"><i class="bi bi-x-square me-2"></i>Batal</a> 
+          </form>
+    </div>
+</div>
+{% endblock %}

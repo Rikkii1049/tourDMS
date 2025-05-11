@@ -1,0 +1,43 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Edit Bidang{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+    <div class="card-header">
+        <i class="bi bi-pencil-square pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Edit Bidang</strong>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('editcategory', id=bidang.id_bidang) }}" method="POST">
+            <div class="mb-3">
+              <label for="inputNamaBidang" class="form-label">Nama Bidang</label>
+              <input name="namaBidang" type="text" class="form-control" id="inputNamaBidang" aria-describedby="dokumenKategoriNama" value="{{ bidang.nama_bidang }}" placeholder="{{ bidang.nama_bidang }}">
+              <div id="dokumenBidangNama" class="form-text">Bidang digunakan untuk menandakan user/staff dari bidang tertentu</div>
+            </div>
+            <div class="mb-3">
+              <label for="inputDeskripsiBidang" class="form-label">Deskripsi Bidang</label>
+              <textarea name="keteranganBidang" class="form-control" id="inputDeskripsiBidang" rows="3">{{ bidang.keterangan or '' }}</textarea>
+              <div id="deskripsiBidang" class="form-text">Deskripsi singkat Bidang</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-pencil-square pe-2"></i>Edit Bidang</button>
+            <a href="" class="btn btn-sm btn-danger" onclick="return confirm('Batal edit bidang?');"><i class="bi bi-x-square pe-2"></i>Batal</a>
+        </form>
+    </div>
+    <div class="card-footer">
+
+    </div>
+</div>
+    
+{% endblock %}

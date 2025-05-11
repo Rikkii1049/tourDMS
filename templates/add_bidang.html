@@ -1,0 +1,30 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Add Bidang Staff Baru{% endblock %}
+
+{% block content %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+  <div class="card-header">
+      <i class="bi bi-people pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Tambah Bidang Baru</strong>
+  </div>
+  <div class="card-body">
+    <form action="{{ url_for('addbidang') }}" method="POST">
+      <div class="mb-3">
+        <label for="inputNamaBidang" class="form-label">Nama Bidang</label>
+        <input name="namaBidang" type="text" class="form-control" id="inputNamaBidang" aria-describedby="dokumenKategoriNama" placeholder="misalnya 'Pemasaran'" required>
+        <div id="bidangNama" class="form-text">Nama dari Bidang</div>
+      </div>
+      <div class="mb-3">
+        <label for="inputDeskripsiBidang" class="form-label">Deskripsi Bidang</label>
+        <textarea name="deskripsiBidang" class="form-control" id="inputDeskripsiBidang" rows="3" placeholder="(Opsional)"></textarea>
+        <div id="deskripsiBidang" class="form-text">Deskripsi singkat Bidang</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-square pe-2"></i>Tambah Bidang</button>
+      <a href="" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin batal menambahkan User?');"><i class="bi bi-x-square pe-2"></i>Batal</a>
+    </form>
+  </div>
+  <div class="card-footer">
+
+  </div>
+</div>
+{% endblock %}

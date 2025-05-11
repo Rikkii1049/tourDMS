@@ -1,0 +1,86 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Add User Baru{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+  <div class="card-header">
+      <i class="bi bi-person-plus pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Tambah User/Staff</strong>
+  </div>
+  <div class="card-body">
+    <form action="{{ url_for('signin') }}" method="POST">
+      <div class="mb-3">
+        <label for="userName" class="form-label">Nama</label>
+        <input name="namaLogin" type="text" class="form-control" id="userName" aria-describedby="emailHelp" placeholder="John Doe" required>
+        <div class="form-text">Isi nama panjang</div>
+      </div>
+      <div class="mb-3">
+        <label for="userEmail" class="form-label">Email address</label>
+        <input name="emailLogin" type="email" class="form-control" id="userEmail" aria-describedby="emailHelp" placeholder="nama@email.com" required>
+        <div class="form-text">Email anda akan digunakan untuk login ke website</div>
+      </div>
+      <div>
+        <label for="userPassword" class="form-label">Password</label>
+        <input name="passwordLogin" type="password" class="form-control" id="userPassword" placeholder="Password123" required>
+      </div>
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="showPass" onclick="myFunction()">
+        <label class="form-check-label" for="remember">Tampilkan Password</label>
+      </div>
+      <div class="mb-3">
+        <label for="userJabatan" class="form-label">Jabatan</label>
+        <input name="jabatanStaff" type="text" class="form-control" id="userJabatan" aria-describedby="emailHelp" placeholder="Sekretaris" required>
+        <div class="form-text">Isi Jabatan Staff</div>
+      </div>
+      <div class="mb-3">
+        <label for="pilihBidangStaff" class="form-label">Bidang</label>
+        <select name="pilihBidang" class="form-select" id="pilihBidangStaff" aria-label="Default select example">
+          <option selected>Pilih bidang</option>
+          {% for bidang in ambilBidang %}
+          <option value="{{ bidang.id_bidang }}">{{ bidang.nama_bidang }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">Pilih Bidang dari Staff</div>
+      </div>
+      <div class="mb-3">
+        <label for="pilihRoleStaff" class="form-label">Peran</label>
+        <select name="pilihRole" class="form-select" id="pilihRoleStaff" aria-label="Default select example">
+          <option value="admin">Administrator</option>
+          <option value="staff" selected>Staff</option>
+        </select>
+        <div class="form-text">Pilih Peran Staff didalam website. Ini akan menentukan akses website dari Staff</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-square pe-2"></i>Tambah User</button>
+      <a href="" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin batal menambahkan user?');"><i class="bi bi-x-square pe-2"></i>Batal</a>
+    </form>
+  </div>
+  <div class="card-footer">
+
+  </div>
+</div>
+{% endblock %}
+
+{% block tagscripts %}
+<script>
+  function myFunction() {
+    var x = document.getElementById("userPassword");
+    if (x.type === "password") {
+      x.type = "text";
+    } else {
+      x.type = "password";
+    }
+  }
+</script>
+{% endblock %}

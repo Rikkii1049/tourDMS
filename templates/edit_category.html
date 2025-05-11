@@ -1,0 +1,41 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Edit Kategori Dokumen{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+  <div class="card-header">
+      <i class="bi bi-pencil-square pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Edit Kategori</strong>
+  </div>
+  <div class="card-body">
+    <form action="{{ url_for('editcategory', id=category.id_kategori) }}" method="POST">
+      <div class="mb-3">
+        <label for="inputNamaKategori" class="form-label">Nama Kategori</label>
+        <input name="namaCategory" type="text" class="form-control form-control-sm" id="inputNamaKategori" aria-describedby="dokumenKategoriNama" value="{{ category.nama_kategori }}" placeholder="{{ category.nama_kategori }}">
+        <div id="dokumenKategoriNama" class="form-text">Kategori ini akan digunakan untuk menandakan dokumen-dokumen</div>
+      </div>
+      <div class="mb-3">
+        <label for="inputDeskripsiKategori" class="form-label">Deskripsi Kategori</label>
+        <textarea name="keteranganCategory" class="form-control" id="inputDeskripsiKategori" rows="3">{{ category.keterangan or '' }}</textarea>
+        <div id="deskripsiKategori" class="form-text">Deskripsi singkat kategori dokumen</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-pencil-square pe-2"></i>Edit Kategori</button>
+      <a href="" class="btn btn-sm btn-danger" onclick="return confirm('Batal edit kategori?');"><i class="bi bi-x-square pe-2"></i>Batal</a> 
+    </form>
+  </div>
+  <div class="card-footer">
+
+  </div>
+{% endblock %}

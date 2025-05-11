@@ -1,0 +1,69 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Manage User/Staff{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+  <div class="card-header">
+      <i class="bi bi-card-list pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Daftar Dokumen {{ current_user.nama }}</strong>
+  </div>
+  <div class="card-body">
+    <div style="overflow-x: scroll;">
+        <table class="table table-responsive table-hover table-sm mt-3">
+            <thead>
+              <tr>
+                <th scope="col" class="pe-4">#</th>
+                <th class="pe-4" scope="col">Judul dokumen</th>
+                <th class="pe-4" scope="col">Nama file</th>
+                <th class="pe-4" scope="col">Tanggal upload</th>
+                <th class="pe-4 text-center" scope="col">Aksi</th>
+                <th class="pe-4" scope="col">Versi</th>
+                <th class="pe-4" scope="col">Deskripsi</th>
+              </tr>
+            </thead>
+            <tbody>
+                {% for docs in mydocs %}
+                <tr>
+                    <th scope="row" class="pe-4 rowNum">{{ loop.index }}</th>
+                    <td class="pe-4 text-nowrap" >{{ docs.judul_dokumen }}</td>
+                    <td class="pe-4 text-nowrap" >{{ docs.nama_file }}</td>
+                    <td class="pe-4 text-nowrap" >{{ docs.tanggal_upload }}</td>
+                    <td class="pe-4 text-center d-inline-flex gap-2">
+                      <a href="{{ url_for('editdocpage', id=docs.id_dokumen) }}" class="btn btn-sm btn-outline-warning text-nowrap">Ubah Dokumen</a>
+                      <form method="POST" action="{{ url_for('deletedoc') }}" style="display: inline;" onsubmit="return confirm('Apakah anda yakin ingin menghapus dokumen ini?');">
+                        <input type="hidden" name="doc_id" value="{{ docs.id_dokumen }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
+                      </form>
+                    </td>
+                    <td class="pe-4 text-nowrap" >{{ docs.versi }}</td>
+                    <td class="pe-4 text-nowrap" >{{ docs.deskripsi }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+  </div>
+  <div class="card-footer">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination pagination-sm">
+        <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="#">1</a></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><a class="page-link" href="#">3</a></li>
+        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+{% endblock %}

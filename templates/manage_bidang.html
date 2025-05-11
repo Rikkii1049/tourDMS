@@ -1,0 +1,63 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Manage Bidang{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+    <div class="card-header">
+        <i class="bi bi-list-ol pe-2" style="color: red; font-size: 1.3rem;"></i><strong style="font-size: 1.2rem;">Daftar Bidang</strong>
+    </div>
+    <div class="card-body">
+        <div style="overflow-x: scroll;">
+            <table class="table table-responsive table-hover table-sm mt-3">
+                <thead>
+                  <tr>
+                    <th scope="col" class="pe-4">#</th>
+                    <th class="pe-4" scope="col">Nama Bidang</th>
+                    <th class="pe-4" scope="col">Keterangan</th>
+                    <th class="pe-4" scope="col">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    {% for bidang in daftarbidang %}
+                    <tr>
+                        <th scope="row" class="pe-4 rowNum">{{ loop.index }}</th>
+                        <td class="pe-4 text-nowrap" >{{ bidang.nama_bidang }}</td>
+                        <td class="pe-4" >{{ bidang.keterangan }}</td>
+                        <td class="pe-4 text-nowrap text-center d-inline-flex gap-2">
+                            <a href="{{ url_for('editbidangpage', id=bidang.id_bidang) }}" class="btn btn-sm btn-outline-warning">Edit</a>
+                            <form method="POST" action="{{ url_for('deletebidang') }}" style="display: inline;" onsubmit="return confirm('Apakah anda yakin ingin menghapus Bidang ini?');">
+                              <input type="hidden" name="bidangId" value="{{ bidang.id_bidang }}">
+                              <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <nav aria-label="Page navigation example">
+            <ul class="pagination pagination-sm">
+              <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+              <li class="page-item"><a class="page-link" href="#">1</a></li>
+              <li class="page-item"><a class="page-link" href="#">2</a></li>
+              <li class="page-item"><a class="page-link" href="#">3</a></li>
+              <li class="page-item"><a class="page-link" href="#">Next</a></li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}

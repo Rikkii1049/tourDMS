@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.12.1/font/bootstrap-icons.min.css">
+    <link href="../static/css/main.css" rel="stylesheet">
+    <title>TourDMS</title>
+    <style>
+    .sticky-button {
+      position: fixed;
+      top: 40%;
+      padding-top: 100px;
+      transform: translateY(-50%) rotate(90deg); /* Rotates the button sideways */
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 1000;
+      white-space: nowrap; /* Ensures text does not break */
+    }
+    .sticky-button:hover {
+      background-color: #45a049;
+    }
+    </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light shadow" style="background-color: white;">
+    <div class="container-fluid">
+      <strong><a class="navbar-brand" href="{{ url_for('index') }}">TourDMS</a></strong>
+      <div class="d-none d-lg-block d-xl-none collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav me-auto mb-lg-0">
+          <li class="nav-item ps-2">
+            <a href="" style="font-size: 0.90rem;font-weight: bold; text-decoration: none; pointer-events: none;">Selamat Datang! {{ current_user.nama }}</a>
+          </li>         
+        </ul>
+        <form action="{{ url_for('search') }}" method="post" class="d-inline-flex" id="search-form">
+            <input name="searchinput" class="form-control form-control-sm me-2" id="search-input" type="search" placeholder="Cari Dokumen..." aria-label="Search" autocomplete="off">
+            <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+      </div>
+      <div class="d-lg-none">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
+          ☰
+        </button>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Main content and aside/sidebar -->
+  <div class="container-fluid p-0">
+    <div class="row g-0">
+      <!-- Sidebar -->
+      <aside class="col-lg-2 d-none d-lg-block px-3 position-sticky aside pt-4" style="height: calc(100vh - 56px);">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item transparent-background">
+            <h6 class="text-muted">Dokumen</h6>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
+            <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action red-hover transparent-background-noborder small">Browse Dokumen</a>
+          </li>
+          <li class="list-group-item transparent-background">
+            <h6 class="text-muted">User/Staff</h6>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('adduserpage') }}">Add User/Staff</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('manageuserpage') }}">Manage User/Staff</a>
+          </li>
+          <li class="list-group-item transparent-background">
+            <h6 class="text-muted text-nowrap">Kategori Dokumen</h6>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addcategorypage') }}">Tambah Kategori</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managecategory') }}">Manage Kategori</a>
+            </li>
+          <li class="list-group-item transparent-background">
+            <h6 class="text-muted">Bidang Staff</h6>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addbidangpage') }}">Tambah Bidang</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managebidang') }}">Manage Bidang</a>
+          </li>
+        </ul>
+      </aside>
+      
+      <!-- Offcanvas Aside for <lg -->
+        <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="sidebarOffcanvas">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+          </div>
+          <div class="offcanvas-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item transparent-background-noborder">
+                <form action="{{ url_for('search') }}" method="post" class="d-inline-flex" id="search-form">
+                  <input name="searchinput" class="form-control form-control-sm me-2" type="search" placeholder="Search" aria-label="Search" autocorrect="off">
+                  <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-search"></i></button>
+                </form>
+              </li>
+              <li class="list-group-item transparent-background">
+                <h6 class="text-muted">Dokumen</h6>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
+                <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action red-hover transparent-background-noborder small">Browse Dokumen</a>
+              </li>
+              <li class="list-group-item transparent-background">
+                <h6 class="text-muted">User/Staff</h6>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('adduserpage') }}">Add User/Staff</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('manageuserpage') }}">Manage User/Staff</a>
+              </li>
+              <li class="list-group-item transparent-background">
+                <h6 class="text-muted text-nowrap">Kategori Dokumen</h6>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addcategorypage') }}">Tambah Kategori</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managecategory') }}">Manage Kategori</a>
+                </li>
+              <li class="list-group-item transparent-background">
+                <h6 class="text-muted">Bidang Staff</h6>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addbidangpage') }}">Tambah Bidang</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managebidang') }}">Manage Bidang</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      <!-- Main Content -->
+      <main class="col-lg-10 col-12 px-4 py-4 main-content-overflow-adjust scrollable-main-content" style="height: calc(100vh - 56px);">
+        <div class="row justify-content-center">
+          <div class="col col-lg-11 col-12 px-4">
+            
+
+            <!-- Flash Massages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages == 'Login successful!' %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+
+
+            <!-- Doc cards (loaded on index) -->
+            {% for doc in docs %}
+            <div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+              <div class="card-header">
+                <span class="badge bg-primary">{{ doc.idkategori.nama_kategori }}</span>
+                {% if doc.tags %}
+                  {% for tag in doc.tags %}
+                    <span class="badge bg-secondary">{{ tag.tag_name }}</span>
+                  {% endfor %}
+                {% else %}
+                  <span class="text-muted">No tags</span>
+                {% endif %}
+              </div>
+              <div class="card-body">
+                <h4>{{ doc.judul_dokumen }}</h4>
+                <p class="card-text p-0 mb-0">{{ doc.deskripsi }}</p>
+                <p class="card-text"><small class="text-muted">Oleh <span class="red-hover">{{ doc.uploader_ref.nama }}</span>{% if doc.bidang_upload_ref.nama_bidang %}<span class="card-text">, bidang {{doc.bidang_upload_ref.nama_bidang}}</span>{% endif %}</small></p>
+              </div>
+              <div class="card-footer text-muted d-inline-flex justify-content-between">
+                <span class="small"><a href="{{ doc.url_file }}" style="text-decoration: none;" download="{{ doc.nama_file }}"><i class="bi bi-download pe-2"></i>Download file</a></span>
+                <span class="card-text small text-muted">Diupload : {{ doc.tanggal_upload }}</span>
+              </div>
+            </div>
+            {% endfor %}
+            <!-- main content block -->
+            {% block content %}{% endblock %}
+
+
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <!-- Footer -->
+  <footer class="bg-dark text-white py-3 mt-auto">
+    <div class="container">
+      <p class="mb-0">&copy; 2025 Your Company. All rights reserved.</p>
+    </div>
+  </footer>
+
+
+  <!-- Bootstrap script -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+  <script src="../static/scripts/script.js"></script>
+  <!-- table numbering script -->
+  <script>
+    const rows = document.querySelectorAll('#tableUsers .rowNum');
+    rows.forEach((cell, index) => {
+        cell.textContent = index + 1;
+    });
+  </script>
+  <!-- document tags script -->
+   {% block tagscripts %}{% endblock %}
+</body>
+</html>

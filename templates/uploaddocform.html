@@ -1,0 +1,142 @@
+{% extends "index.html" %}
+
+{% block title %}Admin - Edit User{% endblock %}
+
+{% block content %}
+<div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
+    <div class="card-header">
+        <strong><i class="bi bi-file-earmark-arrow-up pe-2" style="color: red;"></i>Form Upload Dokumen</strong>
+    </div>
+    <div class="card-body">
+        <form action="{{url_for('upload_new_file')}}" method="post" enctype="multipart/form-data" autocomplete="off">
+            <div class="mb-3">
+                <label for="dokumenJudul" class="form-label">Judul Dokumen</label>
+                <input name="dokumenJudul" type="text" class="form-control form-control-sm" id="dokumenJudul" aria-describedby="dokumenJudulHelp" required>
+                <div id="dokumenJudulHint" class="form-text">Judul akan digunakan untuk pencarian dokumen</div>
+            </div>
+            <div class="mb-3">
+                <label for="pilihKategoriDoc" class="form-label">Kategori Dokumen</label>
+                <select name="pilihKategori" class="form-select" id="pilihKategoriDoc" aria-label="Default select">
+                <option selected>Pilih Kategori</option>
+                {% for category in categories %}
+                <option value="{{ category.id_kategori }}">{{ category.nama_kategori }}</option>
+                {% endfor %}
+                </select>
+                <div class="form-text">Pilih Bidang dari Staff</div>
+            </div>
+            <div class="mb-3">
+                <label for="dokumenKeterangan" class="form-label">Keterangan Dokumen</label>
+                <textarea name="dokumenKeterangan" class="form-control form-control-sm" id="dokumenKeterangan" rows="3"></textarea>
+                <div id="dokumenKeteranganHint" class="form-text">Deskripsi singkat mengenai dokumen</div>
+            </div>
+            <div class="mb-3">
+                <label for="uploadDocument" class="form-label">Upload File</label>
+                <input name="file" class="form-control form-control-sm" id="uploadDocument" accept=".pdf,.doc,.docx,.xls,.xlsx" type="file" required>
+                <div id="dokumenKeteranganHint" class="form-text">Tipe file yang diterima : .docx, .doc, .pdf, .xls, .xlsx, .jpg, dan .img. Maksimum ukuran 10MB</div>
+            </div>
+            <div class="mb-3">
+                <label for="tags" class="form-label">Tags :</label>
+                <div class="d-inline-flex flex-wrap" id="tag-container">
+                    {% for tag in tags %}
+                        <span class="badge bg-secondary me-2 mb-2 tag-btn" style="cursor: pointer; user-select: none;">{{ tag }}</span>
+                    {% endfor %}
+                    <button type="button" data-bs-toggle="modal" data-bs-target="#addTagModal" class="btn badge bg-dark me-4 mb-2">Tambah<i class="bi bi-plus-square-fill ms-2"></i></button>
+                </div>
+                <div id="" class="form-text">Digunakan untuk mempermudah pencarian dokumen. Klik tag yang ingin dipilih</div>
+            </div>
+            
+            <div id="selected-tags-inputs"></div>
+            <br><button type="submit" class="btn btn-sm btn-primary" onclick="prepareTagsForSubmit()"><i class="bi bi-cloud-arrow-up me-2"></i>Upload</button>
+            <a href="{{url_for('index')}}" class="btn btn-sm btn-danger" onclick="return confirm('Batal upload dokumen?');"><i class="bi bi-x-square me-2"></i>Batal</a> 
+          </form>
+    </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="addTagModal" tabindex="-1" aria-labelledby="addTagModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addTagModalLabel">Add New Tag</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="new-tag-name" class="form-control" placeholder="Enter tag name" autocomplete="off">
+      </div>
+      <div class="modal-footer">
+        <!-- Just a regular button -->
+        <button type="button" class="btn btn-primary" onclick="addNewTag()">Add Tag</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+{% block tagscripts %}
+<script>
+    document.querySelectorAll('.tag-btn').forEach(btn => {           
+        btn.addEventListener('click', () => {                         
+            btn.classList.toggle('active');
+            
+            if (btn.classList.contains('active')) {
+                console.log('Active!')
+                btn.classList.remove('bg-secondary');
+                btn.classList.add('bg-primary');
+            } else {
+                btn.classList.remove('bg-primary');
+                btn.classList.add('bg-secondary');
+            }
+        });
+    });
+
+    function addNewTag() {
+        const input = document.getElementById('new-tag-name');
+        const newTagValue = input.value.trim();
+        if (!newTagValue) return;
+
+        const existingTags = Array.from(document.querySelectorAll('.tag-btn')).map(el => el.textContent.trim());
+        if (!existingTags.includes(newTagValue)) {
+            const tagElement = document.createElement('span');
+            tagElement.className = 'badge bg-secondary me-2 mb-2 tag-btn';
+            tagElement.textContent = newTagValue;
+            tagElement.style.cursor = 'pointer';
+            tagElement.style.userSelect = 'none';
+
+            tagElement.addEventListener('click', () => {
+                tagElement.classList.toggle('active');
+                tagElement.classList.toggle('bg-secondary');
+                tagElement.classList.toggle('bg-primary');
+            });
+
+            const tagContainer = document.getElementById('tag-container');
+            tagContainer.prepend(tagElement);
+        }
+
+        input.value = '';
+        bootstrap.Modal.getInstance(document.getElementById('addTagModal')).hide();
+    }
+
+    function prepareTagsForSubmit() {
+        const selectedTags = [];
+        document.querySelectorAll('.tag-btn.active').forEach(tag => {
+            selectedTags.push(tag.textContent.trim());
+        });
+
+        // Clear existing hidden inputs
+        const hiddenInputsContainer = document.getElementById('selected-tags-inputs');
+        hiddenInputsContainer.innerHTML = '';
+
+        // If selectedTags is not empty, create new hidden inputs
+        if (selectedTags.length > 0) {
+            selectedTags.forEach(tag => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_tags';  // Same name as in the form
+                input.value = tag;
+                hiddenInputsContainer.appendChild(input);
+            });
+        }
+        console.log("Selected tags before submit:", selectedTags);
+    }
+  </script>
+{% endblock %}
