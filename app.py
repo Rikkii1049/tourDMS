@@ -299,6 +299,7 @@ def login_process():
 
         user = TblUser.query.filter_by(email=email).first()
         if user:
+            
             check_password = check_password_hash(user.password, password)
             if check_password:
                 login_user(user)
