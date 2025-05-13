@@ -57,12 +57,21 @@
       <!-- Sidebar -->
       <aside class="col-lg-2 d-none d-lg-block px-3 position-sticky aside pt-4" style="height: calc(100vh - 56px);">
         <ul class="list-group list-group-flush">
+          {% if current_user.web_role == 'admin' %}
+          <li class="list-group-item transparent-background">
+            <h6 ><a class=" transparent-background-noborder" style="text-decoration: none ;" href="{{ url_for('admindashboard') }}">Dashboard Admin</a></h6>
+          </li>
+          {% endif %}
           <li class="list-group-item transparent-background">
             <h6 class="text-muted">Dokumen</h6>
-            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
-            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
             <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action red-hover transparent-background-noborder small">Browse Dokumen</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
+            {% if current_user.web_role == 'admin' %}
+            <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managedocpage') }}">Manage Dokumen</a>
+            {% endif %}
           </li>
+          {% if current_user.web_role == 'admin' %}
           <li class="list-group-item transparent-background">
             <h6 class="text-muted">User/Staff</h6>
             <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('adduserpage') }}">Add User/Staff</a>
@@ -77,6 +86,10 @@
             <h6 class="text-muted">Bidang Staff</h6>
             <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addbidangpage') }}">Tambah Bidang</a>
             <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managebidang') }}">Manage Bidang</a>
+          </li>
+          {% endif %}
+          <li class="list-group-item transparent-background">
+            <strong><a class="list-group-item list-group-item-action transparent-background-noborder" onclick="return confirm('Apakah anda yakin ingin logout?');" href="{{ url_for('logout') }}" style="color: red;">LOGOUT</a></strong>
           </li>
         </ul>
       </aside>
@@ -95,12 +108,21 @@
                   <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-search"></i></button>
                 </form>
               </li>
+              {% if current_user.web_role == 'admin' %}
+              <li class="list-group-item transparent-background">
+                <h6 ><a class=" transparent-background-noborder" style="text-decoration: none ;" href="{{ url_for('admindashboard') }}">Dashboard Admin</a></h6>
+              </li>
+              {% endif %}
               <li class="list-group-item transparent-background">
                 <h6 class="text-muted">Dokumen</h6>
-                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
-                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
                 <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action red-hover transparent-background-noborder small">Browse Dokumen</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('mydocs') }}">Dokumen Saya</a>
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('uploaddocform') }}">Upload</a>
+                {% if current_user.web_role == 'admin' %}
+                <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managedocpage') }}">Manage Dokumen</a>
+                {% endif %}
               </li>
+              {% if current_user.web_role == 'admin' %}
               <li class="list-group-item transparent-background">
                 <h6 class="text-muted">User/Staff</h6>
                 <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('adduserpage') }}">Add User/Staff</a>
@@ -115,6 +137,10 @@
                 <h6 class="text-muted">Bidang Staff</h6>
                 <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('addbidangpage') }}">Tambah Bidang</a>
                 <a class="list-group-item list-group-item-action red-hover transparent-background-noborder small" href="{{ url_for('managebidang') }}">Manage Bidang</a>
+              </li>
+              {% endif %}
+              <li class="list-group-item transparent-background">
+                <strong><a class="list-group-item list-group-item-action transparent-background-noborder" onclick="return confirm('Apakah anda yakin ingin logout?');" href="{{ url_for('logout') }}" style="color: red;">LOGOUT</a></strong>
               </li>
             </ul>
           </div>
@@ -144,7 +170,7 @@
             {% for doc in docs %}
             <div class="card text-dark bg-light mb-3 shadow" style="max-width: auto;">
               <div class="card-header">
-                <span class="badge bg-primary">{{ doc.idkategori.nama_kategori }}</span>
+                <span class="badge bg-primary">{{ doc.kategori.nama_kategori }}</span>
                 {% if doc.tags %}
                   {% for tag in doc.tags %}
                     <span class="badge bg-secondary">{{ tag.tag_name }}</span>
@@ -159,7 +185,7 @@
                 <p class="card-text"><small class="text-muted">Oleh <span class="red-hover">{{ doc.uploader_ref.nama }}</span>{% if doc.bidang_upload_ref.nama_bidang %}<span class="card-text">, bidang {{doc.bidang_upload_ref.nama_bidang}}</span>{% endif %}</small></p>
               </div>
               <div class="card-footer text-muted d-inline-flex justify-content-between">
-                <span class="small"><a href="{{ doc.url_file }}" style="text-decoration: none;" download="{{ doc.nama_file }}"><i class="bi bi-download pe-2"></i>Download file</a></span>
+                <span class="small"><a href="{{ url_for('get_download_url', file_name=doc.nama_file) }}" style="text-decoration: none;"><i class="bi bi-download pe-2"></i>Download file</a></span>
                 <span class="card-text small text-muted">Diupload : {{ doc.tanggal_upload }}</span>
               </div>
             </div>
@@ -168,6 +194,7 @@
             {% block content %}{% endblock %}
 
 
+            
           </div>
         </div>
       </main>
@@ -178,7 +205,14 @@
   <!-- Footer -->
   <footer class="bg-dark text-white py-3 mt-auto">
     <div class="container">
-      <p class="mb-0">&copy; 2025 Your Company. All rights reserved.</p>
+      <div class="container d-inline-flex justify-content-between" style="width: 100vw;">
+        <p class="mb-0">&copy; 2025. All rights reserved.</p>
+        <p class="mb-0">Made with :
+          <strong><a href="https://flask.palletsprojects.com/" style="text-decoration: none;">Flask</a></strong>,
+          <strong><a href="https://www.postgresql.org/" style="text-decoration: none;">PostgreSQL</a></strong>, and
+          <strong><a href="https://getbootstrap.com/" style="text-decoration: none;">Bootstrap</a></strong>
+        </p>
+      </div>
     </div>
   </footer>
 

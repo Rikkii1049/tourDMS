@@ -1,12 +1,15 @@
-import pytz, os, mimetypes, re
+import pytz, os, mimetypes, re, boto3, atexit
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_, case, func
-from flask_login import login_user, UserMixin, login_required, LoginManager, current_user
+from sqlalchemy import case, func
+from flask_login import login_user, UserMixin, login_required, LoginManager, current_user, logout_user
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from botocore.client import Config
 from dotenv import load_dotenv
+from apscheduler.schedulers.blocking import BlockingScheduler
+from backup_service import backup_and_upload
 
 app = Flask(__name__)
 
@@ -15,6 +18,17 @@ load_dotenv()
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.getenv('AWS_REGION'),
+    config=Config(s3={'addressing_style': 'virtual'}),
+    endpoint_url='https://s3.ap-southeast-3.amazonaws.com'
+)
+
+BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 
 # file upload configs
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')  # or use a safer directory
@@ -32,6 +46,14 @@ login_manager.login_view = 'login'  # name of your login view function
 login_manager.login_message = "You must be logged in to access this page."
 
 db = SQLAlchemy(app)
+
+# DB backup
+scheduler = BlockingScheduler()
+scheduler.add_job(backup_and_upload, trigger='interval', days=1)
+
+print("Backup service started. Running every 24 hours.")
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
 
 # Get WIB time
 def get_wib_time():
@@ -109,8 +131,7 @@ class TblKategoriDokumen(db.Model):
     nama_kategori = db.Column(db.Text, nullable=False)
     keterangan = db.Column(db.Text)
     status = db.Column(db.Text)
-    
-    kategori_dokumen = db.relationship('TblDokumen', backref='idkategori', lazy=True)
+
 
 class TblLogs(db.Model):
     __tablename__ = 'tbl_logs'
@@ -119,7 +140,7 @@ class TblLogs(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('tbl_user.id_user'), nullable=False)
     action = db.Column(db.Text, nullable=False)
     id_dokumen = db.Column(db.Integer, db.ForeignKey('tbl_dokumen.id_dokumen'), nullable=False)
-    deskripsi = db.Column(db.Text)
+    message = db.Column(db.Text)
     waktu = db.Column(db.DateTime, nullable=False)
 
 class TblTags(db.Model):
@@ -152,6 +173,13 @@ def generate_doc_code(prefix='DOC'):
 @login_manager.user_loader
 def load_user(user_id):
     return TblUser.query.get(int(user_id))
+
+@app.route('/logout')
+@login_required
+def logout():
+    save_log('User %s telah log out!' % current_user.nama, 'logout')
+    logout_user()
+    return redirect(url_for('login'))
 
 @app.route('/')
 @login_required
@@ -194,7 +222,7 @@ def search():
         options(
             db.joinedload(TblDokumen.uploader_ref),
             db.joinedload(TblDokumen.bidang_upload_ref),
-            db.joinedload(TblDokumen.idkategori)
+            db.joinedload(TblDokumen.kategori)
         ).\
         order_by(
             case(
@@ -210,12 +238,14 @@ def search():
         flash('Dokumen dengan kata kunci/filter tidak ditemukan!', 'warning')
         return redirect(url_for('index'))
 
+
+
 # ++++++++++++++ Start Sign in Block +++++++++++++++++++
 
 @app.route('/adduser')
 @login_required
 def adduserpage():
-    getallbidang = TblBidang.query.all()
+    getallbidang = TblBidang.query.filter_by(status='active').all()
     getalluser = TblUser.query.options(db.joinedload(TblUser.bidang)).all()
     return render_template('add_user.html', users=getalluser, ambilBidang=getallbidang)
 
@@ -233,12 +263,14 @@ def signin():
         # Check if User Email exists
         userExistCheck = TblUser.query.filter_by(email=emailUser).first()
         if userExistCheck:
+            save_log('User %s gagal di daftarkan!(Email duplikat)'% username,'signin')
             flash("Pengguna dengan Email ini sudah ada! Silahkan menggunakan Email lain")
             return redirect(url_for('adduserpage'))
         
         # Check if User name exists
         userExistCheck = TblUser.query.filter_by(nama=username).first()
         if userExistCheck:
+            save_log('User %s gagal di daftarkan!(Nama duplikat)'% username,'signin')
             flash("Pengguna dengan Nama ini sudah ada! Silahkan menggunakan Email lain")
             return redirect(url_for('adduserpage'))
         
@@ -248,7 +280,8 @@ def signin():
         db.session.add(new_user)
         db.session.commit()
         
-        flash("Signup successful! Please log in.")
+        save_log('User %s telah berhasil di daftarkan!'% username,'signin')
+        flash("Pendaftaran sukses! silahkan login menggunakna Email dan Password.")
         return redirect(url_for('index'))
     
     flash("An error has occured!")
@@ -271,13 +304,19 @@ def login_process():
         password = request.form.get('passwordLogin')
 
         user = TblUser.query.filter_by(email=email).first()
-        check_password = check_password_hash(user.password, password)
-        
-        if user and check_password:
-            login_user(user)
-            flash('Login successful!', 'success')
-            return redirect(url_for('index'))  # your protected page
+        if user:
+            check_password = check_password_hash(user.password, password)
+            if check_password:
+                login_user(user)
+                save_log('User %s telah berhasil login!'% current_user.nama,'login')
+                flash('Login successful!', 'success')
+                return redirect(url_for('index'))
+            else:
+                save_log('User %s telah gagal login!'% current_user.nama,'login')
+                flash('Email atau password tidak valid!', 'danger')
+                return render_template('login.html')
         else:
+            save_log('User %s telah gagal login!'% current_user.nama,'login')
             flash('Email atau password tidak valid!', 'danger')
             return render_template('login.html')
 
@@ -311,15 +350,20 @@ def edituser(id):
         username = request.form['namaLogin']
         emailUser = request.form['emailLogin']
         
+        name_before = getuser.nama
+        
         # Check if username already exists
         check_username = TblUser.query.filter_by(nama=username).first()
         if check_username and getuser.id_user != id:
+            save_log('User %s telah gagal mengedit data user %s!(Nama duplikat)'% current_user.nama % name_before,'misc_gagal')
             flash("Pengguna dengan Nama ini sudah ada! Silahkan menggunakan nama lain", 'danger')
             return redirect(url_for('edituserpage', id))
         
         # Check if Email already exists
         check_email = TblUser.query.filter_by(email=emailUser).first()
         if check_email and getuser.id_user != id:
+            save_log('User %s telah gagal mengedit data user %s!(Email duplikat)'% current_user.nama % name_before,'misc_gagal')
+            save_log('User %s telah mengedit data user %s!'% current_user.nama % name_before,'misc_gagal')
             flash("Pengguna dengan Email ini sudah ada! Silahkan menggunakan Email lain", 'danger')
             return redirect(url_for('edituserpage', id))
         
@@ -329,9 +373,12 @@ def edituser(id):
         getuser.web_role = request.form['pilihRole']
         getuser.jabatan = request.form['jabatanStaff']
         db.session.commit()
+        
+        save_log('User %s telah mengedit data user %s!'% current_user.nama % name_before,'edit')
         flash('Data User/Staff %s berhasil diubah!' % username, 'success')
         return redirect(url_for('manageuserpage'))
     else:
+        save_log('User %s gagal mengedit data user %s!'% current_user.nama % name_before,'misc_gagal')
         flash('Edit User/Staff gagal!', 'danger')
         return redirect(url_for('manageuserpage'))
 
@@ -345,12 +392,16 @@ def deleteuser():
         if find_user:
             db.session.delete(find_user)
             db.session.commit()
+            
+            save_log('User %s berhasil hapus data user %s!'% current_user.nama % nama_user,'hapus')
             flash('User/Staff %s berhasil dihapus!' % nama_user, 'success')
             return redirect(url_for('manageuserpage'))
         else:
+            save_log('User %s gagal hapus data user %s!'% current_user.nama % nama_user,'misc_gagal')
             flash('User/Staff %s gagal dihapus!' % nama_user, 'danger')
             return redirect(url_for('manageuserpage'))
     else:
+        save_log('User %s gagal hapus data user %s!'% current_user.nama % nama_user,'misc_gagal')
         flash('User/Staff %s gagal dihapus!' % nama_user, 'danger')
         return redirect(url_for('manageuserpage'))
 
@@ -375,6 +426,7 @@ def addcategory():
         check_kategori = TblKategoriDokumen.query.filter_by(nama_kategori=namakategori).first()
         check_kategori_status = TblKategoriDokumen.query.filter_by(status='active').all()
         if check_kategori and check_kategori_status:
+            save_log('User %s gagal menambahkan kategori!(Kategori duplikat)'% current_user.nama,'misc_gagal')
             flash('Kategori dengan nama ini sudah ada, silahkan gunakan nama lain!', 'danger')
             return redirect(url_for('managecategory'))
         
@@ -382,7 +434,12 @@ def addcategory():
         db.session.add(new_category)
         db.session.commit()
         
-        flash("Berhasil Menambahkan Kategori Baru!")
+        save_log('User %s berhasil menambahkan kategori baru!'% current_user.nama,'tambah')
+        flash("Berhasil Menambahkan Kategori Baru!", "danger")
+        return redirect(url_for('managecategory'))
+    else:
+        save_log('User %s gagal menambahkan kategori!(Error)!'% current_user.nama,'misc_gagal')
+        flash("Gagal Menambahkan Kategori Baru!", "danger")
         return redirect(url_for('managecategory'))
 
 @app.route('/editcategorypage<int:id>')
@@ -401,6 +458,7 @@ def editcategory(id):
         check_kategori = TblKategoriDokumen.query.filter_by(nama_kategori=categoryName).first()
         check_kategori_status = TblKategoriDokumen.query.filter_by(status='active').all()
         if check_kategori and check_kategori_status:
+            save_log('User %s gagal mengedit kategori!(Kategori Duplikat)'% current_user.nama,'misc_gagal')
             flash('Kategori dengan nama ini sudah ada, silahkan gunakan nama lain!')
             return redirect(url_for('editcategorypage'))
         
@@ -408,9 +466,11 @@ def editcategory(id):
         get_category.keterangan = request.form['keteranganCategory']
         db.session.commit()
         
+        save_log('User %s berhasil mengedit kategori!'% current_user.nama,'edit')
         flash('Ketegori Dokumen %s berhasil diedit!' % categoryName, 'success')
         return redirect(url_for('managecategory'))
     else:
+        save_log('User %s gagal mengedit kategori!(Error)'% current_user.nama,'misc_gagal')
         flash('Gagal edit data Kategori!', 'danger')
         return redirect(url_for('managecategory'))
         
@@ -431,9 +491,11 @@ def deletecategory():
         get_category.status = inactive
         db.session.commit()
         
+        save_log('User %s berhasil menghapus kategori!'% current_user.nama,'hapus')
         flash('Kategori dokumen %s berhasil dihapus!' % categoryname, 'success')
         return redirect(url_for('managecategory'))
     else:
+        save_log('User %s gagal menghapus kategori!(Error)'% current_user.nama,'misc_gagal')
         flash('Kategori dokumen gagal dihapus!', 'danger')
         return redirect(url_for('managecategory'))
     
@@ -458,6 +520,7 @@ def addbidang():
         check_bidang = TblBidang.query.filter_by(nama_bidang=namabidang).first()
         check_bidang_status = TblBidang.query.filter_by(status='active').all()
         if check_bidang and check_bidang_status:
+            save_log('User %s gagal menambahkan bidang!(Nama Duplikat)'% current_user.nama,'misc_gagal')
             flash('Bidang dengan nama (%s) sudah ada, silahkan gunakan nama lain!' % namabidang, 'danger')
             return redirect(url_for('managebidang'))
         
@@ -465,9 +528,11 @@ def addbidang():
         db.session.add(new_bidang)
         db.session.commit()
         
+        save_log('User %s berhasil menambahkan bidang!'% current_user.nama,'tambah')
         flash("Berhasil Menambahkan Bidang Baru (%s)!" % namabidang, 'success')
         return redirect(url_for('managebidang'))
-    flash("An Error Has Occured!")
+    save_log('User %s gagal menambahkan bidang!'% current_user.nama,'misc_gagal')
+    flash("An Error Has Occured!", "danger")
     return render_template('manage_bidang.html')
 
 @app.route('/editbidangpage<int:id>')
@@ -486,6 +551,7 @@ def editbidang(id):
         check_bidang = TblBidang.query.filter_by(nama_bidang=bidangName).first()
         check_bidang_status = TblBidang.query.filter_by(status='active').all()
         if check_bidang and check_bidang_status:
+            save_log('User %s gagal mengedit bidang!(Nama Duplikat)'% current_user.nama,'misc_gagal')
             flash('Bidang dengan nama (%s) sudah ada, silahkan gunakan nama lain!' % bidangName, 'danger')
             return redirect(url_for('managebidang'))
         
@@ -493,9 +559,11 @@ def editbidang(id):
         get_bidang.keterangan = request.form['keteranganBidang']
         db.session.commit()
         
+        save_log('User %s berhasil menambahkan bidang!'% current_user.nama,'edit')
         flash('Bidang  (%s) berhasil diedit!' % bidangName, 'success')
         return redirect(url_for('managebidang'))
     else:
+        save_log('User %s gagal menambahkan bidang!(Error)'% current_user.nama,'misc_gagal')
         flash('Gagal edit data Bidang!', 'danger')
         return redirect(url_for('managebidang'))
         
@@ -516,13 +584,94 @@ def deletebidang():
         get_bidang.status = inactive
         db.session.commit()
         
+        save_log('User %s berhasil menghapus bidang!'% current_user.nama,'hapus')
         flash('Bidang (%s) berhasil dihapus!' % namabidang, 'success')
         return redirect(url_for('managebidang'))
     else:
+        save_log('User %s gagasl menghapus bidang!'% current_user.nama,'misc_gagal')
         flash('Bidang gagal dihapus!', 'danger')
         return redirect(url_for('managebidang'))
 
 # ++++++++++++++ End Bidang Block +++++++++++++++++++
+
+
+
+# ++++++++++++++ Start Dashboard Admin Block +++++++++++++++++++
+
+@app.route('/admindashboard')
+@login_required
+def admindashboard():
+    # get_login_logs = TblLogs.query.filter_by(action='login').order_by(TblLogs.waktu.desc()).all()
+    return render_template('admindashboard.html')
+
+
+@app.route('/api/get_login_logs', methods=['GET'])
+def send_data():
+    actions = ['login','logout','signin']
+    get_login_logs = TblLogs.query.filter(TblLogs.action.in_(actions)).order_by(TblLogs.id_log.desc()).limit(50).all()
+    data = []
+    for log in get_login_logs:
+        data.append({
+            'id': log.id_log,
+            'message': log.message,
+            'waktu': log.waktu.strftime('%H:%M WITA, %d, %B %Y'),
+            'action': log.action
+        })
+    return jsonify(data)
+
+
+@app.route('/api/get_bucket_data', methods=['GET'])
+def get_bucket():
+    paginator = s3_client.get_paginator('list_objects_v2')
+    total_size = 0
+    total_files = 0
+    free_tier_limit = 5120
+    
+    for page in paginator.paginate(Bucket=BUCKET_NAME, Prefix=f'documents_uploads/'):
+        if 'Contents' in page:
+            for obj in page['Contents']:
+                total_files += 1
+                total_size += obj['Size']
+
+    total_size = round(total_size / (1024 * 1024), 2)
+
+    usage_percent = min(round((total_size / free_tier_limit) * 100, 2), 100)
+    
+    return jsonify({
+        "total_files": total_files,
+        "total_size_mb": total_size,
+        "usage_percent": usage_percent
+        })
+    
+@app.route('/api/get_doc_data', methods=['GET'])
+def get_doc_log():
+    actions = ['dokumen_gagal','dokumen_up_cloud','dokumen_upload','dokumen_edit','dokumen_hapus','dokumen_download']
+    get_docs = TblLogs.query.filter(TblLogs.action.in_(actions)).order_by(TblLogs.id_log.desc()).limit(50).all()
+    data_doc = []
+    for log in get_docs:
+        data_doc.append({
+            'id': log.id_log,
+            'message': log.message,
+            'waktu': log.waktu.strftime('%H:%M WITA, %d, %B %Y'),
+            'action': log.action
+        })
+    return jsonify(data_doc)
+
+@app.route('/api/get_misc_data', methods=['GET'])
+def get_doc_misc():
+    actions = ['tambah','edit','hapus','misc_gagal']
+    get_misc = TblLogs.query.filter(TblLogs.action.in_(actions)).order_by(TblLogs.id_log.desc()).limit(50).all()
+    data_misc = []
+    for log in get_misc:
+        data_misc.append({
+            'id': log.id_log,
+            'message': log.message,
+            'waktu': log.waktu.strftime('%H:%M WITA, %d, %B %Y'),
+            'action': log.action
+        })
+    return jsonify(data_misc)
+    
+# ++++++++++++++ End Dashboard admin Block +++++++++++++++++++
 
 
 
@@ -549,83 +698,89 @@ def get_mime_type(file_path):
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_new_file():
+    title = request.form['dokumenJudul']
     if 'file' not in request.files:
+        save_log('User %s gagal upload dokumen!(File tidak ada dalam request)'% current_user.nama,'dokumen_gagal')
         flash('File tidak ada didalam request', 'danger')
         return redirect(url_for('uploaddocform'))
 
     file = request.files['file']
 
     if file.filename == '':
+        save_log('User %s gagal upload dokumen!(Tidak ada file yang dipilih)'% current_user.nama,'dokumen_gagal')
         flash('Tidak ada file yang dipilih!', 'danger')
         return redirect(url_for('uploaddocform'))
 
     if not allowed_file(file.filename):
+        save_log('User %s gagal upload dokumen!(Extensi file tidak diperbolehkan)'% current_user.nama,'dokumen_gagal')
         flash('Extensi file tidak diperbolehkan!', 'danger')
         return redirect(url_for('uploaddocform'))
 
     filename = secure_filename(file.filename)
-
-    # Optional: Create directory if it doesn't exist
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-    # Optional: Validate MIME type after saving
-    mime_type = get_mime_type(file_path)
-    if not mime_type or not mime_type.startswith(('application/', 'image/')):
-        os.remove(file_path)
-        flash('MIME tidak valid', 'danger')
-        return redirect(url_for('uploaddocform'))
-
-    # Optional: Save metadata to DB
-    # save_file_metadata_to_db(user_id, filename, mime_type, file_path)
-
-    # process document metadatas
-    title = request.form['dokumenJudul']
-    keterangan = request.form['dokumenKeterangan']
-    kategori = request.form['pilihKategori']
-    id_user = current_user.id_user
-    
-    query_user = TblUser.query.get_or_404(id_user)
-    bidang_user = query_user.id_bidang
-    uploader = query_user.id_user
-    timenow = get_wib_time()
-    set_doc_code = generate_doc_code()
     
     check_document = TblDokumen.query.filter_by(judul_dokumen=title).first()
     check_document_status = TblDokumen.query.filter_by(status='active').all()
     if check_document and check_document_status:
+        save_log('User %s gagal upload dokumen!(Nama duplikat)'% current_user.nama,'dokumen_gagal')
         flash('Dokumen dengan nama (%s) sudah ada, silahkan gunakan nama lain!' % title, 'warning')
         return redirect(url_for('uploaddocform'))
 
-    save_to_db = TblDokumen(
-        judul_dokumen=title,
-        nama_file=filename,
-        uploader=uploader,
-        bidang_upload=bidang_user,
-        tanggal_upload=timenow,
-        deskripsi=keterangan,
-        url_file=file_path,
-        versi='1',
-        status='active',
-        doc_code=set_doc_code,
-        id_kategori=kategori
-        )
-    db.session.add(save_to_db)
-    db.session.commit()
-    new_doc_id = save_to_db.id_dokumen
-    
-    tags = request.form.getlist('selected_tags')
-    
-    for name in tags:
-        tag = TblTags.query.filter_by(tag_name=name, id_dokumen=new_doc_id).first()
-        if not tag:
-            tag = TblTags(id_dokumen=new_doc_id, tag_name=name)
-            db.session.add(tag)
-            
-    db.session.commit()
-    file.save(file_path)
-    flash('Dokumen %s berhasil di upload!' % title, 'success')
+    if filename:
+        try:
+            s3_client.upload_fileobj(
+                file,
+                BUCKET_NAME,
+                f'documents_uploads/{filename}',
+            )
+            save_log('Dokumen dari user %s berhasil diupload ke dalam cloud!'% current_user.nama,'dokumen_up_cloud')
+            print('Upload Sukses!')
+        except Exception as e:
+            save_log('Dokumen dari user %s gagal diupload ke dalam cloud!'% current_user.nama,'dokumen_gagal')
+            print('Upload gagal!')
+            return jsonify({'error': str(e)}), 500
+
+        # process document metadatas
+        keterangan = request.form['dokumenKeterangan']
+        kategori = request.form['pilihKategori']
+        id_user = current_user.id_user
+        
+        query_user = TblUser.query.get_or_404(id_user)
+        bidang_user = query_user.id_bidang
+        uploader = query_user.id_user
+        timenow = get_wib_time()
+        set_doc_code = generate_doc_code()
+        
+        save_to_db = TblDokumen(
+            judul_dokumen=title,
+            nama_file=filename,
+            uploader=uploader,
+            bidang_upload=bidang_user,
+            tanggal_upload=timenow,
+            deskripsi=keterangan,
+            url_file='',
+            versi='1',
+            status='active',
+            doc_code=set_doc_code,
+            id_kategori=kategori
+            )
+        db.session.add(save_to_db)
+        db.session.commit()
+        new_doc_id = save_to_db.id_dokumen
+        
+        tags = request.form.getlist('selected_tags')
+        
+        for name in tags:
+            tag = TblTags.query.filter_by(tag_name=name, id_dokumen=new_doc_id).first()
+            if not tag:
+                tag = TblTags(id_dokumen=new_doc_id, tag_name=name)
+                db.session.add(tag)
+                
+        db.session.commit()
+        save_log('User %s berhasil upload dokumen!'% current_user.nama,'dokumen_upload', new_doc_id)
+        flash('Dokumen %s berhasil di upload!' % title, 'success')
+        return redirect(url_for('index'))
+    save_log('User %s gagal upload dokumen!'% current_user.nama,'dokumen_gagal', new_doc_id)
+    flash('Dokumen %s gagal di upload!' % title, 'danger')
     return redirect(url_for('index'))
 
 @app.route('/mydocuments')
@@ -645,6 +800,21 @@ def mydocs():
     
     return render_template('mydocs.html', mydocs = getdocs)    
 
+@app.route('/managedocs')
+@login_required
+def managedocpage():    
+    getdocs = db.session.query(TblDokumen) \
+    .join(TblUser, TblDokumen.uploader == TblUser.id_user) \
+    .join(TblBidang, TblDokumen.bidang_upload == TblBidang.id_bidang) \
+    .join(TblKategoriDokumen, TblDokumen.id_kategori == TblKategoriDokumen.id_kategori) \
+    .join(TblTags, TblDokumen.id_dokumen == TblTags.id_dokumen) \
+    .filter(TblDokumen.status == 'active') \
+    .group_by(TblDokumen.id_dokumen) \
+    .order_by(TblDokumen.tanggal_upload.desc()) \
+    .all()
+    
+    return render_template('manage_docs.html', mydocs = getdocs)    
+
 @app.route('/mydocuments/edit<int:id>')
 @login_required
 def editdocpage(id):
@@ -659,75 +829,143 @@ def editdocpage(id):
     )
     active_tags = [tag[0] for tag in active_tags]
     
-    return render_template('edit_doc.html', doc=get_doc, categories = getcategory, tags=active_tags)    
+    return render_template('edit_doc.html', doc=get_doc, categories = getcategory, tags=active_tags) 
 
 @app.route('/mydocuments/edit', methods=['POST'])
 @login_required
-def editdoc():
+def editdoc(source=None):
+    id_doc = request.form['doc_id']
     if 'file' not in request.files:
         flash('File tidak ada didalam request', 'danger')
-        return redirect(url_for('mydocs'))
+        save_log('User %s gagal edit dokumen!(File tidak ada di dalam request)'% current_user.nama,'dokumen_gagal',id_doc)
+        if source == 'manage':
+            return redirect(url_for('managedocpage'))
+        else:
+            return redirect(url_for('mydocs'))
 
     file = request.files['file']
 
     if file.filename == '':
+        save_log('User %s gagal edit dokumen!(Tidak ada file yang dipilih)'% current_user.nama,'dokumen_gagal',id_doc)
         flash('Tidak ada file yang dipilih!', 'danger')
-        return redirect(url_for('mydocs'))
+        if source == 'manage':
+            return redirect(url_for('managedocpage'))
+        else:
+            return redirect(url_for('mydocs'))
 
     if not allowed_file(file.filename):
+        save_log('User %s gagal edit dokumen!(Extensi file tidak diperbolehkan)'% current_user.nama,'dokumen_gagal',id_doc)
         flash('Extensi file tidak diperbolehkan!', 'danger')
-        return redirect(url_for('mydocs'))
+        if source == 'manage':
+            return redirect(url_for('managedocpage'))
+        else:
+            return redirect(url_for('mydocs'))
 
     filename = secure_filename(file.filename)
 
-    # Optional: Create directory if it doesn't exist
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if filename:
+        try:
+            s3_client.upload_fileobj(
+                file,
+                BUCKET_NAME,
+                f'documents_uploads/{filename}',
+            )
+            save_log('User %s berhasil upload dokumen yang sudah diedit ke cloud!'% current_user.nama,'dokumen_up_cloud',id_doc)
+            print('Upload Sukses!')
+        except Exception as e:
+            save_log('User %s gagal upload dokumen!'% current_user.nama,'dokumen_gagal',id_doc)
+            print('Upload gagal!')
+            return jsonify({'error': str(e)}), 500
 
-    # Optional: Validate MIME type after saving
-    mime_type = get_mime_type(file_path)
-    if not mime_type or not mime_type.startswith(('application/', 'image/')):
-        os.remove(file_path)
-        flash('MIME tidak valid', 'danger')
-        return redirect(url_for('mydocs'))
-
-    id_doc = request.form['doc_id']
+        
+        get_doc = TblDokumen.query.get_or_404(id_doc)
+        get_doc.url_file = ''
+        get_doc.nama_file = filename
+        get_doc.versi = get_doc.versi + 1
+        
+        save_to_db_versi = TblVersiDokumen(
+            id_dokumen=get_doc.id_dokumen,
+            uploader=get_doc.uploader,
+            url_file=get_doc.url_file,
+            versi=get_doc.versi,
+            diupload_pada = get_doc.tanggal_upload,
+            status='deleted'
+            )
+        
+        db.session.add(save_to_db_versi)
+        db.session.commit()
+        save_log('User %s berhasil edit dokumen!'% current_user.nama,'dokumen_edit',id_doc)
+        flash('Dokumen berhasil diubah!', 'success')
+        if source == 'manage':
+            return redirect(url_for('managedocpage'))
+        else:
+            return redirect(url_for('mydocs'))
+    else:
+        save_log('User %s gagal edit dokumen!'% current_user.nama,'dokumen_gagal',id_doc)
+        flash('Dokumen %s gagal diedit!', 'danger')
+        return redirect(url_for('index'))
     
-    get_doc = TblDokumen.query.get_or_404(id_doc)
-    
-    get_doc.url_file = file_path
-    get_doc.nama_file = filename
-    get_doc.versi = get_doc.versi + 1
-    
-    save_to_db_versi = TblVersiDokumen(
-        id_dokumen=get_doc.id_dokumen,
-        uploader=get_doc.uploader,
-        url_file=get_doc.url_file,
-        versi=get_doc.versi,
-        diupload_pada = get_doc.tanggal_upload,
-        status='deleted'
-        )
-    
-    db.session.add(save_to_db_versi)
-    db.session.commit()
-    file.save(file_path)
-    flash('Dokumen berhasil diubah!', 'success')
-    return redirect(url_for('mydocs'))
-    
-@app.route('/mydocuments/delete')
+@app.route('/mydocuments/delete', methods=['POST'])
 @login_required
-def deletedoc():
+def deletedoc(source=None):
     get_doc_id = request.form['doc_id']
     query = TblDokumen.query.get_or_404(get_doc_id)
     
     query.status = 'deleted'
     db.session.commit()
-    flash('Dokumen berhasil dihapus!', 'success') 
-    redirect(url_for('mydocs'))
     
+    save_log('User %s berhasil menghapus dokumen!'% current_user.nama,'dokumen_hapus',get_doc_id)
+    flash('Dokumen berhasil dihapus!', 'success') 
+    if source == 'manage':
+        return redirect(url_for('managedocpage'))
+    else:
+        return redirect(url_for('mydocs'))
 # ++++++++++++++ End Document Block +++++++++++++++++++
 
 
+
+# Log process
+def save_log(message, action,document=None):
+    user = current_user.id_user
+    time = get_wib_time()
+    message = message
+    action = action
+    
+    if document:
+        query_to_logs = TblLogs(
+            user_id=user,
+            action=action,
+            id_dokumen=document,
+            message=message,
+            waktu=time
+        )
+    else:
+        query_to_logs = TblLogs(
+            user_id=user,
+            action=action,
+            message=message,
+            waktu=time
+        )
+    db.session.add(query_to_logs)
+    db.session.commit()
+
+    
+@app.route('/get-download-url/<path:file_name>')
+def get_download_url(file_name):
+    try:
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': BUCKET_NAME,
+                'Key': f'documents_uploads/{file_name}'
+            },
+            ExpiresIn=300
+        )
+        save_log('User %s mendownload dokumen %s'% current_user.nama % file_name,'dokumen_download')
+        return redirect(presigned_url)
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
