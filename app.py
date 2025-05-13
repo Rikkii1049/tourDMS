@@ -48,12 +48,6 @@ login_manager.login_message = "You must be logged in to access this page."
 db = SQLAlchemy(app)
 
 # DB backup
-scheduler = BlockingScheduler()
-scheduler.add_job(backup_and_upload, trigger='interval', days=1)
-
-print("Backup service started. Running every 24 hours.")
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
 
 # Get WIB time
 def get_wib_time():

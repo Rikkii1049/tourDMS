@@ -2,47 +2,38 @@ import os
 import subprocess
 from datetime import datetime
 import boto3
-from dotenv import load_dotenv
 
-load_dotenv()
+# Use environment variables from Railway environment settings
+AWS_ACCESS_KEY = os.environ["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
+DB_USER = os.environ["DB_USER"]
+DB_PASSWORD = os.environ["DB_PASSWORD"]
+DB_NAME = os.environ["DB_NAME"]
 
-def dump_database():
+def backup_and_upload():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_file = f"/tmp/db_backup_{timestamp}.sql"
     
-    # Run mysqldump (you can adapt this for pg_dump)
     dump_cmd = [
         "mysqldump",
-        "-u", os.getenv("DB_USER"),
-        f"-p{os.getenv('DB_PASSWORD')}",
-        os.getenv("DB_NAME")
+        "-u", DB_USER,
+        f"-p{DB_PASSWORD}",
+        DB_NAME
     ]
-
     with open(backup_file, "w") as out_file:
         subprocess.run(dump_cmd, stdout=out_file, check=True)
-    
-    return backup_file
 
-def upload_to_s3(file_path):
     s3 = boto3.client(
         "s3",
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY,
     )
-    
-    bucket = os.getenv("S3_BUCKET_NAME")
-    s3_key = f"db_backups/{os.path.basename(file_path)}"
-    
-    s3.upload_file(file_path, bucket, s3_key)
-    
-    print(f"Uploaded {file_path} to s3://{bucket}/{s3_key}")
-    os.remove(file_path)
+    s3_key = f"db_backups/{os.path.basename(backup_file)}"
+    s3.upload_file(backup_file, S3_BUCKET_NAME, s3_key)
 
-def backup_and_upload():
-    try:
-        file_path = dump_database()
-        upload_to_s3(file_path)
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Dump failed: {e}")
-    except Exception as e:
-        print(f"[ERROR] Backup error: {e}")
+    print(f"[OK] Uploaded to s3://{S3_BUCKET_NAME}/{s3_key}")
+    os.remove(backup_file)
+
+if __name__ == "__main__":
+    backup_and_upload()
