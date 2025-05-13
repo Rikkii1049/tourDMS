@@ -306,11 +306,9 @@ def login_process():
                 flash('Login successful!', 'success')
                 return redirect(url_for('index'))
             else:
-                save_log('User %s telah gagal login!'% current_user.nama,'login')
                 flash('Email atau password tidak valid!', 'danger')
                 return render_template('login.html')
         else:
-            save_log('User %s telah gagal login!'% current_user.nama,'login')
             flash('Email atau password tidak valid!', 'danger')
             return render_template('login.html')
 
