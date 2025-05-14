@@ -39,6 +39,7 @@
       <div class="mb-3">
         <label for="pilihBidangStaff" class="form-label">Bidang</label>
         <select name="pilihBidang" class="form-select" id="pilihBidangStaff" aria-label="Default select example">
+          <option selected>Pilih bidang</option>
           {% for bidang in ambilBidang %}
           <option value="{{ bidang.id_bidang }}" {% if bidang.id_bidang == user.id_bidang %}selected{% endif %}>{{ bidang.nama_bidang }}</option>
           {% endfor %}
