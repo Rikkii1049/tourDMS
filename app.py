@@ -6,7 +6,7 @@ from flask_login import login_user, UserMixin, login_required, LoginManager, cur
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from botocore.client import Config
+from botocore.client import Config, logging
 from dotenv import load_dotenv
 from apscheduler.schedulers.blocking import BlockingScheduler
 from backup_service import backup_and_upload
@@ -960,6 +960,6 @@ def get_download_url(file_name):
     except Exception as e:
         return f"Error: {str(e)}", 500
     
-    
+boto3.set_stream_logger(name='botocore')
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
