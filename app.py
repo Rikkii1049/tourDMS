@@ -1,4 +1,4 @@
-import pytz, os, mimetypes, re, boto3, atexit
+import pytz, os, mimetypes, re, boto3
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import case, func
@@ -6,10 +6,9 @@ from flask_login import login_user, UserMixin, login_required, LoginManager, cur
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from botocore.client import Config, logging
+from botocore.client import Config
 from dotenv import load_dotenv
-from apscheduler.schedulers.blocking import BlockingScheduler
-from backup_service import backup_and_upload
+from pytz import timezone
 
 app = Flask(__name__)
 
@@ -135,7 +134,7 @@ class TblLogs(db.Model):
     action = db.Column(db.Text, nullable=False)
     id_dokumen = db.Column(db.Integer, db.ForeignKey('tbl_dokumen.id_dokumen'), nullable=False)
     message = db.Column(db.Text)
-    waktu = db.Column(db.DateTime, nullable=False)
+    waktu = db.Column(db.DateTime(timezone=True), default=lambda: datetime.utcnow().replace(tzinfo=pytz.utc))
 
 class TblTags(db.Model):
     __tablename__ = 'tbl_tags'
@@ -591,20 +590,21 @@ def deletebidang():
 @app.route('/admindashboard')
 @login_required
 def admindashboard():
-    # get_login_logs = TblLogs.query.filter_by(action='login').order_by(TblLogs.waktu.desc()).all()
     return render_template('admindashboard.html')
-
 
 @app.route('/api/get_login_logs', methods=['GET'])
 def send_data():
-    actions = ['login','logout','signin']
+    actions = ['login', 'logout', 'signin']
     get_login_logs = TblLogs.query.filter(TblLogs.action.in_(actions)).order_by(TblLogs.id_log.desc()).limit(50).all()
+
+    wita = timezone('Asia/Makassar')
     data = []
     for log in get_login_logs:
+        waktu_wita = log.waktu.astimezone(wita)  # Convert from UTC to WITA
         data.append({
             'id': log.id_log,
             'message': log.message,
-            'waktu': log.waktu.strftime('%H:%M WITA, %d, %B %Y'),
+            'waktu': waktu_wita.strftime('%H:%M WITA, %d %B %Y'),
             'action': log.action
         })
     return jsonify(data)
