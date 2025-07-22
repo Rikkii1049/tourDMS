@@ -323,7 +323,7 @@ def login_process():
 def manageuserpage():
     getallbidang = TblBidang.query.all()
     getalluser = TblUser.query.options(db.joinedload(TblUser.bidang))\
-    .filter(TblUser.status == 'active')\
+    .filter(TblUser.status == 'Active')\
     .all()
     return render_template('manage_users.html', users=getalluser, ambilBidang=getallbidang)
 
