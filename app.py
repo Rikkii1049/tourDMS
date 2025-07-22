@@ -322,7 +322,9 @@ def login_process():
 @login_required
 def manageuserpage():
     getallbidang = TblBidang.query.all()
-    getalluser = TblUser.query.options(db.joinedload(TblUser.bidang)).all()
+    getalluser = TblUser.query.options(db.joinedload(TblUser.bidang))\
+    .filter(TblUser.status == 'active')\
+    .all()
     return render_template('manage_users.html', users=getalluser, ambilBidang=getallbidang)
 
 @app.route('/edituserpage/<int:id>')
@@ -381,7 +383,7 @@ def deleteuser():
         find_user = TblUser.query.get(id)
         nama_user = find_user.nama
         if find_user:
-            db.session.delete(find_user)
+            find_user.status = "deactivated"
             db.session.commit()
             
             save_log(f'User {current_user.nama} berhasil hapus user {nama_user}!','hapus')
