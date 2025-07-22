@@ -261,7 +261,7 @@ def signin():
             return redirect(url_for('adduserpage'))
         
         # Check if User name exists
-        userExistCheck = TblUser.query.filter_by(nama=username).first()
+        userExistCheck = TblUser.query.filter_by(nama=username, status='Active').first()
         if userExistCheck:
             save_log(f'User {current_user.nama} gagal menambahkan user baru!(Nama Duplikat)','signin')
             flash("Pengguna dengan Nama ini sudah ada! Silahkan menggunakan Email lain")
@@ -269,7 +269,7 @@ def signin():
         
         timenow = get_wib_time()
         hashed_password = generate_password_hash(passwordUser)
-        new_user = TblUser(nama=username, email=emailUser,password=hashed_password, web_role=role, id_bidang=bidang, dibuat_pada=timenow, jabatan=jabatan, status="Aktif")
+        new_user = TblUser(nama=username, email=emailUser,password=hashed_password, web_role=role, id_bidang=bidang, dibuat_pada=timenow, jabatan=jabatan, status="Active")
         db.session.add(new_user)
         db.session.commit()
         
